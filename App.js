@@ -12,7 +12,8 @@ import RootNavigator from './navigators';
 
 // importing redux stuff
 import { Provider } from 'react-redux'
-import store from './store'
+import { store, persistor } from './store'
+import { PersistGate } from 'redux-persist/integration/react'
 
 
 // Overriding default styles
@@ -49,7 +50,9 @@ export default function App(props)
 
   return (
     <Provider store={store}>
-      <RootNavigator />
+      <PersistGate persistor={persistor} loading={null}>
+        <RootNavigator />
+      </PersistGate>
     </Provider>
   )
 }

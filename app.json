@@ -20,10 +20,16 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.smsletter.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
-      }
+      },
+      "permissions": [
+        "MANAGE_EXTERNAL_STORAGE",
+        "READ_CALL_LOG",
+        "READ_CONTACTS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
