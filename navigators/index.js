@@ -1,5 +1,5 @@
-import React from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import React, { useEffect } from 'react'
+import { View, Text, StyleSheet, ToastAndroid } from 'react-native'
 import { createDrawerNavigator } from '@react-navigation/drawer'
 import { createStackNavigator } from '@react-navigation/stack'
 import { NavigationContainer } from '@react-navigation/native'
@@ -11,7 +11,11 @@ import LogoutScreen from '../screens/LogoutScreen'
 import LoginScreen from '../screens/LoginScreen'
 import CustomDrawerContent from '../components/CustomDrawerContent'
 import { COLORS } from '../Config'
-import { useSelector } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
+import { FIRST_START, SAVE_CONTACTS } from '../store/actions/auth'
+import * as Contacts from 'expo-contacts'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+
 
 // Drawer navigator
 const Drawer = createDrawerNavigator()
@@ -82,6 +86,52 @@ const screenOptions = {
 export default function RootNavigator(props)
 {
     const { isAuth } = useSelector(state => state.auth)
+    const { firstStart } = useSelector(state => state.main)
+    const dispatch = useDispatch()
+
+    const syncContactsForTheFirstTime = async () => {
+        const { status } = await Contacts.requestPermissionsAsync()
+        if (status === 'granted') {
+            console.log('syncContactsForTheFirstTime')
+            ToastAndroid.show('syncContactsForTheFirstTime', ToastAndroid.SHORT)
+
+            const { data } = await Contacts.getContactsAsync()
+
+            await AsyncStorage.setItem('@contacts', JSON.stringify(data))
+            //dispatch({ type: SAVE_CONTACTS, payload: data })
+            // to switch firstStart to false
+            dispatch({ type: FIRST_START, payload: false })
+        }
+    }
+
+    useEffect(() => {
+        (async () => {
+            if (firstStart) {
+                console.log(`switching firstStart (${firstStart}) to false`)
+                ToastAndroid.show(`switching firstStart (${firstStart}) to false`, ToastAndroid.LONG)
+
+                await syncContactsForTheFirstTime()
+
+                // clean up
+                //await AsyncStorage.setItem('@contacts', '[]')
+
+                // saving new contacts as initial contacts
+                /*
+                let { status } = await Contacts.requestPermissionsAsync()
+                if (status === 'granted') {
+                    let { data } = await Contacts.getContactsAsync()
+                    // data is a contacts list
+
+                    dispatch({ type: SAVE_CONTACTS, payload: data })
+                    // @contacts really needed to be initilized
+                    await AsyncStorage.setItem('@contacts', JSON.stringify(data || []))
+                    ToastAndroid.show(data.length, ToastAndroid.LONG)
+                }
+                */
+            }
+        })()
+    }, [])
+
 
     return (
         <NavigationContainer>

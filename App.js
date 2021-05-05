@@ -1,7 +1,7 @@
 import 'react-native-gesture-handler'
 
 import React, { useState, useContext } from 'react';
-import { StyleSheet, Text, View, TextInput, Button, ScrollView } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import * as Font from 'expo-font'
 import AppLoading from 'expo-app-loading'

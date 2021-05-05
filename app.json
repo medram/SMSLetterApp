@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "my_app",
-    "slug": "my_app",
+    "name": "SMSLetter",
+    "slug": "SMSLetter",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -20,14 +20,14 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.smsletter.app",
+      "package": "com.mr4web.smsletter",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
       "permissions": [
-        "MANAGE_EXTERNAL_STORAGE",
-        "READ_CALL_LOG",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
         "READ_CONTACTS"
       ]
     },

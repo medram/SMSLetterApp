@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { View, Text, StyleSheet, useColorScheme } from 'react-native'
+import { View, Text, StyleSheet, useColorScheme, ToastAndroid } from 'react-native'
 import { Input, Button } from 'react-native-elements'
 import * as Config from '../Config'
 import { COLORS } from '../Config'
@@ -51,6 +51,7 @@ export default function LoginScreen(props)
                         const user = res.data
                         // save token & user and set isAuth to true
                         dispatch({ type: AUTH_LOGIN, payload: {user: user, token: token} })
+                        ToastAndroid.show('Siggned in successfully.', ToastAndroid.SHORT)
                     }
                 }).catch(err => {
                     console.log(err)

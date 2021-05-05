@@ -1,3 +1,5 @@
 export const AUTH_LOGIN = 'AUTH_LOGIN'
 export const AUTH_LOGOUT = 'AUTH_LOGOUT'
 export const TOGGLE_BUTTON_STATUS = 'TOGGLE_BUTTON_STATUS'
+export const SAVE_CONTACTS = 'SAVE_CONTACTS'
+export const FIRST_START = 'FIRST_START'
