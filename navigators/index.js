@@ -11,6 +11,7 @@ import LogoutScreen from '../screens/LogoutScreen'
 import LoginScreen from '../screens/LoginScreen'
 import CustomDrawerContent from '../components/CustomDrawerContent'
 import { COLORS } from '../Config'
+import * as Config from '../Config'
 import { useDispatch, useSelector } from 'react-redux'
 import { FIRST_START, SAVE_CONTACTS } from '../store/actions/auth'
 import * as Contacts from 'expo-contacts'
@@ -92,8 +93,11 @@ export default function RootNavigator(props)
     const syncContactsForTheFirstTime = async () => {
         const { status } = await Contacts.requestPermissionsAsync()
         if (status === 'granted') {
-            console.log('syncContactsForTheFirstTime')
-            ToastAndroid.show('syncContactsForTheFirstTime', ToastAndroid.SHORT)
+            if (Config.DEBUG)
+            {
+                console.log('syncContactsForTheFirstTime')
+                ToastAndroid.show('syncContactsForTheFirstTime', ToastAndroid.SHORT)
+            }
 
             const { data } = await Contacts.getContactsAsync()
 
@@ -107,27 +111,13 @@ export default function RootNavigator(props)
     useEffect(() => {
         (async () => {
             if (firstStart) {
-                console.log(`switching firstStart (${firstStart}) to false`)
-                ToastAndroid.show(`switching firstStart (${firstStart}) to false`, ToastAndroid.LONG)
+                if (Config.DEBUG)
+                {
+                    console.log(`switching firstStart (${firstStart}) to false`)
+                    ToastAndroid.show(`switching firstStart (${firstStart}) to false`, ToastAndroid.LONG)
+                }
 
                 await syncContactsForTheFirstTime()
-
-                // clean up
-                //await AsyncStorage.setItem('@contacts', '[]')
-
-                // saving new contacts as initial contacts
-                /*
-                let { status } = await Contacts.requestPermissionsAsync()
-                if (status === 'granted') {
-                    let { data } = await Contacts.getContactsAsync()
-                    // data is a contacts list
-
-                    dispatch({ type: SAVE_CONTACTS, payload: data })
-                    // @contacts really needed to be initilized
-                    await AsyncStorage.setItem('@contacts', JSON.stringify(data || []))
-                    ToastAndroid.show(data.length, ToastAndroid.LONG)
-                }
-                */
             }
         })()
     }, [])

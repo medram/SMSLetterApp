@@ -16,8 +16,11 @@ const CONTACTS_TASK = 'CONTACTS_TASK'
 // my task
 TaskManager.defineTask(CONTACTS_TASK, async () => {
     // do your background task here.
-    console.log('RUN...')
-    ToastAndroid.show('RUN...', ToastAndroid.LONG)
+    if (Config.DEBUG)
+    {
+        console.log('RUN...')
+        ToastAndroid.show('RUN...', ToastAndroid.LONG)
+    }
     try {
         const { data: newContactList } = await Contacts.getContactsAsync()
         const oldContactList = JSON.parse(await AsyncStorage.getItem('@contacts'))
@@ -28,15 +31,22 @@ TaskManager.defineTask(CONTACTS_TASK, async () => {
         console.log('New contacts: ', newContacts)
         if (newContacts.length) {
             newContacts.forEach(contact => {
-                sendSMS(contact).then((res) => {
-                    console.log('STATUS CODE:', res.status)
-                    if (res.status === 201) {
-                        // save all contacts to storage to access it later from the app.
-                        AsyncStorage.setItem('@contacts', JSON.stringify(oldContactList.concat(contact)))
-                    }
-                }).catch((err) => {
-                    console.log(err)
-                })
+                if (isValidToSendSMS(contact))
+                {
+                    sendSMS(contact).then((res) => {
+                        console.log('STATUS CODE:', res.status)
+                        if (res.status === 201) {
+                            // save all contacts to storage to access it later from the app.
+                            AsyncStorage.setItem('@contacts', JSON.stringify(oldContactList.concat(contact)))
+                        }
+                    }).catch((err) => {
+                        console.log(err)
+                    })
+                }
+                else
+                {
+                    AsyncStorage.setItem('@contacts', JSON.stringify(oldContactList.concat(contact)))
+                }
             })
         }
         return (newContacts ? BackgroundFetch.Result.NewData : BackgroundFetch.Result.NoData)
@@ -75,10 +85,19 @@ const sendSMS = async (contact) => {
             'Authorization': `Token ${token}`
         }
     })
+}
 
+const isValidToSendSMS = (contact) =>
+{
+    const username = getContactUsername(contact)
+    if (username.toUpperCase().indexOf('C-') === 0)
+        return true
 
-    ToastAndroid.show(`sending sms messages (${contacts.length})...`, ToastAndroid.LONG)
-    console.log('sending sms messages...')
+    return false
+}
+
+const getContactUsername = (contact) => {
+    return contact.name || contact.firstName
 }
 
 const getPhoneNumber = (contact) => {
@@ -134,8 +153,11 @@ export default function HomeScreen(props)
     const showContactsInStorageHandler = () => {
         AsyncStorage.getItem('@contacts').then((contacts) => {
             let storedContacts = JSON.parse(contacts)
-            console.log('Contacts in Storage: ' + storedContacts.length)
-            ToastAndroid.show('Contacts in Storage: ' + storedContacts.length, ToastAndroid.SHORT)
+            if (Config.DEBUG)
+            {
+                console.log('Contacts in Storage: ' + storedContacts.length)
+                ToastAndroid.show('Contacts in Storage: ' + storedContacts.length, ToastAndroid.SHORT)
+            }
         })
     }
 
@@ -205,7 +227,11 @@ export default function HomeScreen(props)
 
     useEffect(() => {
         if (buttonStatus) {
-            console.log('On')
+            if (Config.DEBUG)
+            {
+                console.log('On')
+            }
+
             /*
             Object {
                 "contactType": "person",
@@ -239,7 +265,10 @@ export default function HomeScreen(props)
                         // saving contacts to storage to make it accessable to the Task.
                         AsyncStorage.setItem('@token', token).then(() => {
                             ToastAndroid.show('Initialized successfully.', ToastAndroid.SHORT)
-                            console.log('Task Registred')
+                            if (Config.DEBUG)
+                            {
+                                console.log('Task Registred')
+                            }
                         })
 
                         // getting stored contacts and sync it with states
@@ -259,17 +288,24 @@ export default function HomeScreen(props)
                 }
             }).catch(err => {
                 ToastAndroid.show('Can\'t get phone contacts!, please enable Contacts Permission.', ToastAndroid.LANG)
+                if (Config.DEBUG)
+                {
+                    console.log(err)
+                }
                 dispatch({ type: TOGGLE_BUTTON_STATUS })
-                console.log(err)
             })
         }
         else {
             // TaskManager.unregisterAllTasksAsync()
             BackgroundFetch.unregisterTaskAsync(CONTACTS_TASK).then(() => {
+                if (Config.DEBUG) { }
                 console.log('Off')
                 ToastAndroid.show('Disabled', ToastAndroid.SHORT)
             }).catch((err) => {
-                console.log('Error occured during closing task.')
+                if (Config.DEBUG)
+                {
+                    console.log('Error occured during closing task.')
+                }
             })
         }
 
@@ -293,10 +329,12 @@ export default function HomeScreen(props)
                 </View>
                 </TouchableNativeFeedback>
             </View>
-           <Button title='Show Tasks' onPress={showTasksHandler} />
-           <Button title={`Reset to FirstStart (${firstStart})`} onPress={firstStartHandler} />
+           {Config.DEBUG && <View>
+                <Button title='Show Tasks' onPress={showTasksHandler} />
+                <Button title={`Reset to FirstStart (${firstStart})`} onPress={firstStartHandler} />
 
-           <Button title='Contacts in storage' onPress={showContactsInStorageHandler} />
+                <Button title='Contacts in storage' onPress={showContactsInStorageHandler} />
+            </View>}
         </View>
     )
 }
