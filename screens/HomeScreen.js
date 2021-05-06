@@ -39,6 +39,10 @@ TaskManager.defineTask(CONTACTS_TASK, async () => {
                             // save all contacts to storage to access it later from the app.
                             AsyncStorage.setItem('@contacts', JSON.stringify(oldContactList.concat(contact)))
                         }
+                        else if (res.status === 400)
+                        {
+                            console.log('Error sending: ', contact)
+                        }
                     }).catch((err) => {
                         console.log(err)
                     })
@@ -106,7 +110,7 @@ const getPhoneNumber = (contact) => {
     {
         phone = contact.phoneNumbers[0].number
     }
-    else if (contact.phoneNumbers === 2)
+    else if (contact.phoneNumbers.length === 2)
     {
         phone = contact.phoneNumbers[0].number ? contact.phoneNumbers[0].number : contact.phoneNumbers[1].number
     }
