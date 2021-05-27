@@ -12,7 +12,8 @@ const mainReducer = (state = initialState, action) => {
     switch(action.type)
     {
         case TOGGLE_BUTTON_STATUS:
-            return { ...state, buttonStatus: !state.buttonStatus }
+            let value = !!action.payload ? action.payload : !state.buttonStatus
+            return { ...state, buttonStatus: value }
         case SAVE_CONTACTS:
             return { ...state, contactList: action.payload }
         case FIRST_START:

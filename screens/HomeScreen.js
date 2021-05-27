@@ -147,7 +147,7 @@ export default function HomeScreen(props)
         dispatch({ type: SAVE_CONTACTS, payload: [] })
         if (buttonStatus)
         {
-            dispatch({ type: TOGGLE_BUTTON_STATUS })
+            dispatch({ type: TOGGLE_BUTTON_STATUS, payload: false })
         }
         // clean up
         AsyncStorage.setItem('@contacts', '[]').catch((err) => {
@@ -296,7 +296,7 @@ export default function HomeScreen(props)
                 {
                     console.log(err)
                 }
-                dispatch({ type: TOGGLE_BUTTON_STATUS })
+                dispatch({ type: TOGGLE_BUTTON_STATUS, payload: false })
             })
         }
         else {
