@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { View, Text, StyleSheet, ToastAndroid } from 'react-native'
+import { View, Text, StyleSheet, ToastAndroid, PermissionsAndroid } from 'react-native'
 import { createDrawerNavigator } from '@react-navigation/drawer'
 import { createStackNavigator } from '@react-navigation/stack'
 import { NavigationContainer } from '@react-navigation/native'
@@ -16,6 +16,8 @@ import { useDispatch, useSelector } from 'react-redux'
 import { FIRST_START, SAVE_CONTACTS } from '../store/actions/auth'
 import * as Contacts from 'expo-contacts'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import CallLogs from 'react-native-call-log'
+import { SettingsScreen } from '../screens/SettingsScreen'
 
 
 // Drawer navigator
@@ -51,11 +53,18 @@ export function MenuNavigator(props)
 
         <Drawer.Screen name='Home' component={HomeScreen}
             options={{
+                headerShown: true,
                 drawerIcon: (params) => renderIcon('home', params)
             }} />
         <Drawer.Screen name='Profile' component={ProfileScreen}
             options={{
                 drawerIcon: (params) => renderIcon('person-outline', params)
+            }} />
+        <Drawer.Screen name='Settings' component={SettingsScreen}
+            options={{
+                title: 'Settings',
+                headerShown: true,
+                drawerIcon: (params) => renderIcon('options-outline', params)
             }} />
         <Drawer.Screen name='Logout' component={LogoutScreen}
             options={{
@@ -65,8 +74,8 @@ export function MenuNavigator(props)
 }
 
 
-// some stack navigators
 /*
+// some stack navigators
 // used from routing screens
 const Stack = createStackNavigator()
 
@@ -77,11 +86,14 @@ const screenOptions = {
     headerTintColor: '#fff',
 }
 
-<Stack.Navigator initialRouteName='Home' screenOptions={screenOptions}>
-    <Stack.Screen name='Home' component={HomeScreen} />
-    <Stack.Screen name='MealsList' component={MealsListScreen} options={({ route }) => ({ title: route.params.title + ' list' })} />
-    <Stack.Screen name='MealDetail' component={MealDetailScreen} />
-</Stack.Navigator>
+export const StackNavigator = (props) => {
+
+    return (
+        <Stack.Navigator initialRouteName='Settings' screenOptions={screenOptions}>
+            <Stack.Screen name='Settings' component={SettingsScreen} />
+        </Stack.Navigator>
+    )
+}
 */
 
 export default function RootNavigator(props)
@@ -91,21 +103,26 @@ export default function RootNavigator(props)
     const dispatch = useDispatch()
 
     const syncContactsForTheFirstTime = async () => {
-        const { status } = await Contacts.requestPermissionsAsync()
-        if (status === 'granted') {
+        /*
+        //const { status } = await Contacts.requestPermissionsAsync()
+        const status = PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_CALL_LOG)
+        if (status === PermissionsAndroid.RESULTS.GRANTED) {
             if (Config.DEBUG)
             {
                 console.log('syncContactsForTheFirstTime')
                 ToastAndroid.show('syncContactsForTheFirstTime', ToastAndroid.SHORT)
             }
 
-            const { data } = await Contacts.getContactsAsync()
+            //const { data } = await Contacts.getContactsAsync()
+            const data = await CallLogs.loadAll()
 
             await AsyncStorage.setItem('@contacts', JSON.stringify(data))
             //dispatch({ type: SAVE_CONTACTS, payload: data })
             // to switch firstStart to false
             dispatch({ type: FIRST_START, payload: false })
         }
+        */
+        dispatch({ type: FIRST_START, payload: false })
     }
 
     useEffect(() => {

@@ -17,7 +17,8 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mr4web.smsletter"
     },
     "android": {
       "package": "com.mr4web.smsletter",

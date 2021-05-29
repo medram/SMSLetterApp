@@ -8,7 +8,8 @@ import * as TaskManager from 'expo-task-manager'
 import * as BackgroundFetch from 'expo-background-fetch'
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios'
-
+import CallLogs from 'react-native-call-log'
+import sha1 from 'crypto-js/sha1';
 
 
 const CONTACTS_TASK = 'CONTACTS_TASK'
@@ -22,43 +23,67 @@ TaskManager.defineTask(CONTACTS_TASK, async () => {
         ToastAndroid.show('RUN...', ToastAndroid.LONG)
     }
     try {
-        const { data: newContactList } = await Contacts.getContactsAsync()
-        const oldContactList = JSON.parse(await AsyncStorage.getItem('@contacts'))
+        //const { data: newContactList } = await Contacts.getContactsAsync()
+        const filter = {
+            minTimestamp: 1571835032
+        }
+        let minTimestamp = await AsyncStorage.getItem('@minTimestamp')
+        const newContactList = await CallLogs.load(-1, { minTimestamp: minTimestamp })
+        //const newContactList = await CallLogs.loadAll()
+        //CallLogs.load(-1, filter).then(c => console.log(c)).catch(err => console.error(err))
+
+        //const oldContactList = JSON.parse(await AsyncStorage.getItem('@contacts'))
+
 
         // filter new contacts
-        const newContacts = await getNewContact(newContactList, oldContactList)
+        //const newContacts = await getNewCallLog(newContactList, oldContactList)
+        const newContacts = newContactList
         console.log('Contacts: ', newContactList.length)
         console.log('New contacts: ', newContacts)
         if (newContacts.length) {
-            newContacts.forEach(contact => {
-                if (isValidToSendSMS(contact))
-                {
-                    sendSMS(contact).then((res) => {
-                        console.log('STATUS CODE:', res.status)
-                        if (res.status === 201) {
-                            // save all contacts to storage to access it later from the app.
-                            AsyncStorage.setItem('@contacts', JSON.stringify(oldContactList.concat(contact)))
-                        }
-                        else if (res.status === 400)
-                        {
-                            console.log('Error sending: ', contact)
-                        }
-                    }).catch((err) => {
-                        console.log(err)
-                    })
-                }
-                else
-                {
-                    AsyncStorage.setItem('@contacts', JSON.stringify(oldContactList.concat(contact)))
+            newContacts.forEach(async (contact) => {
+                try {
+                    const res = await sendSMS(contact)
+
+                    console.log('STATUS CODE:', res.status)
+                    if (res.status === 201) {
+                        // updating the minimum timestamp.
+                        await AsyncStorage.setItem('@minTimestamp', new Date().getTime().toString())
+                    }
+                    else if (res.status === 400)
+                    {
+                        console.log('Error sending SMS')
+                    }
+                } catch (err) {
+                    console.log('Error sending SMS:', err)
                 }
             })
         }
+
         return (newContacts ? BackgroundFetch.Result.NewData : BackgroundFetch.Result.NoData)
     } catch (err) {
         console.log(err)
         return BackgroundFetch.Result.Failed
     }
 })
+
+const getNewCallLog = async (newCallLogList, oldCallLogList) => {
+    try {
+        let newLog = newCallLogList.filter(newCallLog => {
+            // return true if the contact is not in old contactList
+            return oldCallLogList.find(oldCallLog => callHash(oldCallLog) === callHash(newCallLog)) ? false : true
+        })
+
+        return newLog
+    } catch (err) {
+        console.log(err)
+        return []
+    }
+}
+
+const callHash = (callLog) => {
+    return sha1(`${callLog.phoneNumber}-${callLog.duration}-${callLog.timestamp}`)
+}
 
 const getNewContact = async (newContactList, oldContactList) => {
     try {
@@ -75,9 +100,9 @@ const getNewContact = async (newContactList, oldContactList) => {
 }
 
 const sendSMS = async (contact) => {
-    let phone = getPhoneNumber(contact)
+    let phone = getPhoneNumberFromCallLog(contact)
     const data = {
-        name: contact.name || contact.firstName,
+        name: getContactUsername(contact),
         phone,
         send_sms: true
     }
@@ -101,11 +126,18 @@ const isValidToSendSMS = (contact) =>
 }
 
 const getContactUsername = (contact) => {
-    return contact.name || contact.firstName
+    //return contact.name || contact.firstName
+    return contact.name ? contact.name : ''
 }
 
-const getPhoneNumber = (contact) => {
+const getPhoneNumberFromCallLog = (contact) => {
+    let phone = contact.phoneNumber
+    return numberCleanup(phone)
+}
+
+const getPhoneNumberFromContact = (contact) => {
     let phone = ""
+
     if (contact.phoneNumbers.length === 1)
     {
         phone = contact.phoneNumbers[0].number
@@ -127,6 +159,7 @@ export default function HomeScreen(props)
     const { navigation } = props
     const { buttonStatus, firstStart } = useSelector(state => state.main)
     const { token } = useSelector(state => state.auth)
+    const { incomingCalls, outgoingCalls } = useSelector(state => state.main.settings)
     const dispatch = useDispatch()
 
 
@@ -258,40 +291,34 @@ export default function HomeScreen(props)
             */
 
             // asking for permissions
-            Contacts.requestPermissionsAsync().then(({ status }) => {
-                if (status === 'granted') {
+            //Contacts.requestPermissionsAsync().then(({ status }) => {
+            PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_CALL_LOG).then((status) => {
+
+                if (status === PermissionsAndroid.RESULTS.GRANTED) {
                     // registring contacts task
                     BackgroundFetch.registerTaskAsync(CONTACTS_TASK, {
-                        minimumInterval: 10, // 15 seconds
+                        minimumInterval: 10, // 10 seconds
                         stopOnTerminate: false,
                         startOnBoot: true
                     }).then(() => {
                         // saving contacts to storage to make it accessable to the Task.
                         AsyncStorage.setItem('@token', token).then(() => {
-                            ToastAndroid.show('Initialized successfully.', ToastAndroid.SHORT)
-                            if (Config.DEBUG)
-                            {
-                                console.log('Task Registred')
-                            }
+                            AsyncStorage.setItem('@minTimestamp', new Date().getTime().toString()).then(() => {
+                                ToastAndroid.show('Initialized successfully.', ToastAndroid.SHORT)
+                                if (Config.DEBUG)
+                                {
+                                    console.log('Task Registred')
+                                }
+                            })
                         })
-
-                        // getting stored contacts and sync it with states
-
-                        //syncContactsFromStorage().then(contactToWorkWith => {
-                            // store valid contacts to let the Task work with.
-                            /*
-                            AsyncStorage.setItem('@contacts', JSON.stringify(contactToWorkWith))
-                                .then(() => {
-                                }).catch(err => console.log(err))
-                            */
-                        //})
-
-
-
                     }).catch(err => console.log(err))
                 }
+                else
+                {
+                    ToastAndroid.show('Can\'t access phone call log!, please enable this permission.', ToastAndroid.LANG)
+                }
             }).catch(err => {
-                ToastAndroid.show('Can\'t get phone contacts!, please enable Contacts Permission.', ToastAndroid.LANG)
+                ToastAndroid.show('Can\'t access phone call log!, please enable this permission.', ToastAndroid.LANG)
                 if (Config.DEBUG)
                 {
                     console.log(err)
@@ -302,8 +329,9 @@ export default function HomeScreen(props)
         else {
             // TaskManager.unregisterAllTasksAsync()
             BackgroundFetch.unregisterTaskAsync(CONTACTS_TASK).then(() => {
-                if (Config.DEBUG) { }
-                console.log('Off')
+                if (Config.DEBUG) {
+                    console.log('Off')
+                }
                 ToastAndroid.show('Disabled', ToastAndroid.SHORT)
             }).catch((err) => {
                 if (Config.DEBUG)
