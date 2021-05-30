@@ -3,8 +3,10 @@ export const COLORS = {
     'secondary': '#607D8B'
 }
 
-export const HOSTNAME = 'http://192.168.1.102:8000'
+export const DEBUG = false
+export const HOSTNAME = 'http://192.168.1.112:8000'
 //export const HOSTNAME = 'http://64.20.54.76'
+//export const HOSTNAME = 'http://dashboard.smsletter.com'
 export const BASE_URL = `${HOSTNAME}/api`
 
 // API URLs
@@ -18,4 +20,3 @@ export const URLS = {
 export const APP_NAME = 'SMSLetter'
 export const APP_VERSION = '1.0.0'
 
-export const DEBUG = true

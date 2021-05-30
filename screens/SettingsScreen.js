@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import { Switch } from 'react-native-elements'
 import { useSelector, useDispatch } from 'react-redux'
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { TOGGLE_INCOMING_CALLS, TOGGLE_OUTGOING_CALLS } from '../store/actions/auth'
 import * as Config from '../Config'
@@ -13,10 +14,16 @@ export function SettingsScreen(props)
     const dispatch = useDispatch()
 
     const changeIncomingCallsHandler = () => {
+        (async () => {
+            await AsyncStorage.setItem('@incoming', (!incomingCalls).toString())
+        })()
         dispatch({ type: TOGGLE_INCOMING_CALLS })
     }
 
     const changeOutgoingCallsHandler = () => {
+        (async () => {
+            await AsyncStorage.setItem('@outgoing', (!outgoingCalls).toString())
+        })()
         dispatch({ type: TOGGLE_OUTGOING_CALLS })
     }
 

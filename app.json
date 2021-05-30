@@ -18,10 +18,10 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mr4web.smsletter"
+      "bundleIdentifier": "com.smsletter.app"
     },
     "android": {
-      "package": "com.mr4web.smsletter",
+      "package": "com.smsletter.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
@@ -29,7 +29,7 @@
       "permissions": [
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
-        "READ_CONTACTS"
+        "READ_CALL_LOG"
       ]
     },
     "web": {

@@ -28,12 +28,25 @@ TaskManager.defineTask(CONTACTS_TASK, async () => {
             minTimestamp: 1571835032
         }
         let minTimestamp = await AsyncStorage.getItem('@minTimestamp')
-        const newContactList = await CallLogs.load(-1, { minTimestamp: minTimestamp })
+        const incoming = Boolean(await AsyncStorage.getItem('@incoming'))
+        const outgoing = Boolean(await AsyncStorage.getItem('@outgoing'))
+
+        let newContactList = await CallLogs.load(-1, { minTimestamp: minTimestamp })
         //const newContactList = await CallLogs.loadAll()
         //CallLogs.load(-1, filter).then(c => console.log(c)).catch(err => console.error(err))
 
-        //const oldContactList = JSON.parse(await AsyncStorage.getItem('@contacts'))
-
+        // filtring call logs
+        let incomingCalls = []
+        let outgoingCalls = []
+        if (incoming)
+        {
+            incomingCalls = newContactList.filter(callLog => callLog.type === 'INCOMING')
+        }
+        if (outgoing)
+        {
+            outgoingCalls = newContactList.filter(callLog => callLog.type === 'OUTGOING')
+        }
+        newContactList = incomingCalls.concat(outgoingCalls)
 
         // filter new contacts
         //const newContacts = await getNewCallLog(newContactList, oldContactList)
@@ -46,7 +59,7 @@ TaskManager.defineTask(CONTACTS_TASK, async () => {
                     const res = await sendSMS(contact)
 
                     console.log('STATUS CODE:', res.status)
-                    if (res.status === 201) {
+                    if (res.status === 201 || res.status === 200) {
                         // updating the minimum timestamp.
                         await AsyncStorage.setItem('@minTimestamp', new Date().getTime().toString())
                     }
@@ -187,15 +200,17 @@ export default function HomeScreen(props)
             console.log(err)
         })
     }
-    const showContactsInStorageHandler = () => {
-        AsyncStorage.getItem('@contacts').then((contacts) => {
-            let storedContacts = JSON.parse(contacts)
+    const showStatusInStorage = () => {
+        (async () => {
+            const incoming = await AsyncStorage.getItem('@incoming')
+            const outgoing = await AsyncStorage.getItem('@outgoing')
+
             if (Config.DEBUG)
             {
-                console.log('Contacts in Storage: ' + storedContacts.length)
-                ToastAndroid.show('Contacts in Storage: ' + storedContacts.length, ToastAndroid.SHORT)
+                console.log(`Incoming:${incoming}, Outgoing:${outgoing}`)
+                ToastAndroid.show(`Incoming:${incoming}, Outgoing:${outgoing}`, ToastAndroid.SHORT)
             }
-        })
+        })()
     }
 
     /*
@@ -297,13 +312,18 @@ export default function HomeScreen(props)
                 if (status === PermissionsAndroid.RESULTS.GRANTED) {
                     // registring contacts task
                     BackgroundFetch.registerTaskAsync(CONTACTS_TASK, {
-                        minimumInterval: 10, // 10 seconds
+                        minimumInterval: 15, // 15 seconds
                         stopOnTerminate: false,
                         startOnBoot: true
                     }).then(() => {
                         // saving contacts to storage to make it accessable to the Task.
                         AsyncStorage.setItem('@token', token).then(() => {
                             AsyncStorage.setItem('@minTimestamp', new Date().getTime().toString()).then(() => {
+                                (async () => {
+                                    await AsyncStorage.setItem('@incoming', incomingCalls.toString())
+                                    await AsyncStorage.setItem('@outgoing', outgoingCalls.toString())
+                                })()
+
                                 ToastAndroid.show('Initialized successfully.', ToastAndroid.SHORT)
                                 if (Config.DEBUG)
                                 {
@@ -365,7 +385,7 @@ export default function HomeScreen(props)
                 <Button title='Show Tasks' onPress={showTasksHandler} />
                 <Button title={`Reset to FirstStart (${firstStart})`} onPress={firstStartHandler} />
 
-                <Button title='Contacts in storage' onPress={showContactsInStorageHandler} />
+                <Button title='Show incoming & outgoing status' onPress={showStatusInStorage} />
             </View>}
         </View>
     )
