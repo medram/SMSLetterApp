@@ -10,7 +10,7 @@ npm-debug.*
 *.keystore
 dist/
 web-build/
-android/
+#android/
 ios/
 
 # macOS

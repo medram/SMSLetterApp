@@ -7,20 +7,26 @@ import { Ionicons, FontAwesome } from '@expo/vector-icons'
 import { useDispatch } from 'react-redux'
 import { AUTH_LOGIN } from '../store/actions/auth'
 import axios from 'axios'
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 export default function LoginScreen(props)
 {
     const [email, setEmail] = React.useState('')
     const [password, setPassword] = React.useState('')
-    const [ message, setMessage ] = React.useState('')
-    const [buttonText, setButtonText ] = React.useState('Sign in')
+    const [message, setMessage] = React.useState('')
+    const [company, setCompany] = React.useState('')
+    const [buttonText, setButtonText] = React.useState('Sign in')
 
     const dispatch = useDispatch()
 
 
     const changeEmailHandler = (value) => {
         setEmail(value)
+    }
+
+    const changeCompanyHandler = (value) => {
+        setCompany(value.toString().toLowerCase())
     }
 
     const changePasswordHandler = (value) => {
@@ -32,16 +38,20 @@ export default function LoginScreen(props)
         setButtonText('Signing in...')
         setMessage('')
 
-        axios.post(Config.URLS.auth, {
+        //console.log(`${Config.HOSTNAME}/${company}/api/auth/`)
+
+        axios.post(`${Config.HOSTNAME}/${company}/api/auth/`, {
             username: email,
             password: password
         }).then(res => {
             //console.log(res)
             if (res.status === 200)
             {
+                //console.log(`${Config.HOSTNAME}/${company}/api/profile/`)
+
                 const token = res.data.token
                 // getting profile info.
-                axios.get(Config.URLS.profile, {
+                axios.get(`${Config.HOSTNAME}/${company}/api/profile/`, {
                     headers: {
                         Authorization: `Token ${token}`
                     }
@@ -50,8 +60,9 @@ export default function LoginScreen(props)
                     {
                         const user = res.data
                         // save token & user and set isAuth to true
-                        dispatch({ type: AUTH_LOGIN, payload: {user: user, token: token} })
+                        AsyncStorage.setItem('@company', company)
                         ToastAndroid.show('Siggned in successfully.', ToastAndroid.SHORT)
+                        dispatch({ type: AUTH_LOGIN, payload: {user: user, token: token} })
                     }
                 }).catch(err => {
                     console.log(err)
@@ -88,6 +99,16 @@ export default function LoginScreen(props)
                 secureTextEntry={true} onChangeText={changePasswordHandler}
                 autoCapitalize='none'
                 />
+
+            <Input placeholder='Company name'
+                leftIcon={<FontAwesome name='building-o' size={30} color='#fff' />}
+                inputContainerStyle={styles.inputContainer}
+                style={styles.input}
+                placeholderTextColor={COLORS.secondary}
+                onChangeText={changeCompanyHandler}
+                autoCapitalize='none'
+                //keyboardType='email-address'
+            />
 
             <Button title={buttonText} buttonStyle={styles.buttonStyle} onPress={submitHandler} disabled={buttonText !== 'Sign in' ? true : false } />
         </View>

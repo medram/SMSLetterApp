@@ -1,4 +1,4 @@
-import { SAVE_CONTACTS, TOGGLE_BUTTON_STATUS, FIRST_START, TOGGLE_INCOMING_CALLS, TOGGLE_OUTGOING_CALLS } from "../actions/auth"
+import { SAVE_CONTACTS, TOGGLE_BUTTON_STATUS, FIRST_START, TOGGLE_CALL_TYPE } from "../actions/auth"
 
 
 const initialState = {
@@ -6,8 +6,13 @@ const initialState = {
     buttonStatus: false,
     contactList: [],
     settings: {
-        incomingCalls: true,
-        outgoingCalls: true
+        incoming: true,
+        outgoing: true,
+        answeredExternally: true,
+        missed: false,
+        voicemail: false,
+        rejected: false,
+        blocked: false,
     },
 }
 
@@ -27,17 +32,11 @@ const mainReducer = (state = initialState, action) => {
         case FIRST_START:
             return { ...state, firstStart: action.payload }
 
-        case TOGGLE_INCOMING_CALLS:
+        case TOGGLE_CALL_TYPE:
         {
-
-            let value = !!action.payload ? action.payload : !state.settings.incomingCalls
-            return { ...state, settings: { ...state.settings, incomingCalls: value } }
-        }
-
-        case TOGGLE_OUTGOING_CALLS:
-        {
-            let value = !!action.payload ? action.payload : !state.settings.outgoingCalls
-            return { ...state, settings: { ...state.settings, outgoingCalls: value } }
+            let callType = action.payload.type
+            let value = action.payload.value
+            return { ...state, settings: { ...state.settings, [callType]: value } }
         }
 
         default:

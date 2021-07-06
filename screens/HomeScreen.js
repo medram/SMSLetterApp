@@ -3,13 +3,11 @@ import { useSelector, useDispatch } from 'react-redux'
 import { View, Text, StyleSheet, TouchableNativeFeedback, Button, PermissionsAndroid, ToastAndroid, Linking } from 'react-native'
 import * as Config from '../Config'
 import { FIRST_START, SAVE_CONTACTS, TOGGLE_BUTTON_STATUS } from '../store/actions/auth'
-import * as Contacts from 'expo-contacts'
 import * as TaskManager from 'expo-task-manager'
 import * as BackgroundFetch from 'expo-background-fetch'
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios'
 import CallLogs from 'react-native-call-log'
-import sha1 from 'crypto-js/sha1';
 
 
 const CONTACTS_TASK = 'CONTACTS_TASK'
@@ -22,31 +20,13 @@ TaskManager.defineTask(CONTACTS_TASK, async () => {
         console.log('RUN...')
         ToastAndroid.show('RUN...', ToastAndroid.LONG)
     }
+
     try {
-        //const { data: newContactList } = await Contacts.getContactsAsync()
-        const filter = {
-            minTimestamp: 1571835032
-        }
         let minTimestamp = await AsyncStorage.getItem('@minTimestamp')
-        const incoming = Boolean(await AsyncStorage.getItem('@incoming'))
-        const outgoing = Boolean(await AsyncStorage.getItem('@outgoing'))
-
         let newContactList = await CallLogs.load(-1, { minTimestamp: minTimestamp })
+        console.log(newContactList)
         //const newContactList = await CallLogs.loadAll()
-        //CallLogs.load(-1, filter).then(c => console.log(c)).catch(err => console.error(err))
-
-        // filtring call logs
-        let incomingCalls = []
-        let outgoingCalls = []
-        if (incoming)
-        {
-            incomingCalls = newContactList.filter(callLog => callLog.type === 'INCOMING')
-        }
-        if (outgoing)
-        {
-            outgoingCalls = newContactList.filter(callLog => callLog.type === 'OUTGOING')
-        }
-        newContactList = incomingCalls.concat(outgoingCalls)
+        newContactList = await filterCalls(newContactList)
 
         // filter new contacts
         //const newContacts = await getNewCallLog(newContactList, oldContactList)
@@ -80,23 +60,54 @@ TaskManager.defineTask(CONTACTS_TASK, async () => {
     }
 })
 
-const getNewCallLog = async (newCallLogList, oldCallLogList) => {
-    try {
-        let newLog = newCallLogList.filter(newCallLog => {
-            // return true if the contact is not in old contactList
-            return oldCallLogList.find(oldCallLog => callHash(oldCallLog) === callHash(newCallLog)) ? false : true
-        })
 
-        return newLog
-    } catch (err) {
-        console.log(err)
-        return []
+const filterCalls = async(callLogsList) => {
+    // filtring call logs
+    /*
+    INCOMING_TYPE
+    OUTGOING_TYPE
+    MISSED_TYPE
+    VOICEMAIL_TYPE
+    REJECTED_TYPE
+    BLOCKED_TYPE
+    ANSWERED_EXTERNALLY_TYPE
+    */
+
+    const incoming = await getCallSetting('incoming')
+    const outgoing = await getCallSetting('outgoing')
+    const missed = await getCallSetting('missed')
+    const voicemail = await getCallSetting('voicemail')
+    const rejected = await getCallSetting('rejected')
+    const blocked = await getCallSetting('blocked')
+    const answeredExternally = await getCallSetting('answeredExternally')
+
+    let filteredCalls = []
+
+    if (incoming) {
+        filteredCalls = filteredCalls.concat(callLogsList.filter(callLog => callLog.type === 'INCOMING'))
     }
+    if (outgoing) {
+        filteredCalls = filteredCalls.concat(callLogsList.filter(callLog => callLog.type === 'OUTGOING'))
+    }
+    if (missed) {
+        filteredCalls = filteredCalls.concat(callLogsList.filter(callLog => callLog.type === 'MISSED'))
+    }
+    if (voicemail) {
+        filteredCalls = filteredCalls.concat(callLogsList.filter(callLog => callLog.type === 'VOICEMAIL'))
+    }
+    if (rejected) {
+        filteredCalls = filteredCalls.concat(callLogsList.filter(callLog => callLog.type === 'REJECTED'))
+    }
+    if (blocked) {
+        filteredCalls = filteredCalls.concat(callLogsList.filter(callLog => callLog.type === 'BLOCKED'))
+    }
+    if (answeredExternally) {
+        filteredCalls = filteredCalls.concat(callLogsList.filter(callLog => (callLog.type === 'ANSWERED_EXTERNALLY' || callLog.type === 'ANSWEREDEXTERNALLY')))
+    }
+
+    return filteredCalls
 }
 
-const callHash = (callLog) => {
-    return sha1(`${callLog.phoneNumber}-${callLog.duration}-${callLog.timestamp}`)
-}
 
 const getNewContact = async (newContactList, oldContactList) => {
     try {
@@ -121,7 +132,7 @@ const sendSMS = async (contact) => {
     }
     console.log('DATA: ', data)
     const token = await AsyncStorage.getItem('@token')
-    return await axios.post(Config.URLS.contact, data, {
+    return await axios.post(await Config.URLS.contact(), data, {
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Token ${token}`
@@ -136,6 +147,10 @@ const isValidToSendSMS = (contact) =>
         return true
 
     return false
+}
+
+const getCallSetting = async (name) => {
+    return (await AsyncStorage.getItem(`@${name}`)).toLocaleLowerCase() === 'true'
 }
 
 const getContactUsername = (contact) => {
@@ -172,8 +187,17 @@ export default function HomeScreen(props)
     const { navigation } = props
     const { buttonStatus, firstStart } = useSelector(state => state.main)
     const { token } = useSelector(state => state.auth)
-    const { incomingCalls, outgoingCalls } = useSelector(state => state.main.settings)
+    const { incoming, outgoing, answeredExternally,
+        missed, voicemail, rejected, blocked } = useSelector(state => state.main.settings)
     const dispatch = useDispatch()
+
+    /*
+    Config.URLS.contact().then(data => {
+        console.log(data)
+    }).catch(err => {
+
+    })
+    */
 
 
     const toggleButtonHandler = () => {
@@ -202,80 +226,41 @@ export default function HomeScreen(props)
     }
     const showStatusInStorage = () => {
         (async () => {
-            const incoming = await AsyncStorage.getItem('@incoming')
-            const outgoing = await AsyncStorage.getItem('@outgoing')
+            let minTimestamp = await AsyncStorage.getItem('@minTimestamp')
+            let newContactList = await CallLogs.load(-1, { minTimestamp: minTimestamp })
+            console.log('Detected Calls: ', newContactList.length)
+            console.log(newContactList)
+            //const newContactList = await CallLogs.loadAll()
+            newContactList = await filterCalls(newContactList)
+            console.log('Filtered Calls: ', newContactList.length)
+            console.log(newContactList)
+
+            const incoming = await getCallSetting('incoming')
+            const outgoing = await getCallSetting('outgoing')
+            const missed = await getCallSetting('missed')
+            const voicemail = await getCallSetting('voicemail')
+            const rejected = await getCallSetting('rejected')
+            const blocked = await getCallSetting('blocked')
+            const answeredExternally = await getCallSetting('answeredExternally')
 
             if (Config.DEBUG)
             {
-                console.log(`Incoming:${incoming}, Outgoing:${outgoing}`)
-                ToastAndroid.show(`Incoming:${incoming}, Outgoing:${outgoing}`, ToastAndroid.SHORT)
+                console.log(`\nincoming:${incoming}, \noutgoing:${outgoing}, \nmissed:${missed}, \nvoicemail:${voicemail}, \nrejected:${rejected}, \nblocked:${blocked}, \nansweredExternally:${answeredExternally}`)
+                //ToastAndroid.show(`Incoming:${incoming}, Outgoing:${outgoing}`, ToastAndroid.SHORT)
             }
         })()
     }
 
-    /*
+
     useEffect(() => {
-        if (firstStart)
-        {
-            (async() => {
-                await syncContactsForTheFirstTime()
-            })()
-        }
-    }, [firstStart])
-    */
-
-    /*
-    const syncContactsFromStorage = async () => {
-
-        const storedContacts = JSON.parse(await AsyncStorage.getItem('@contacts'))
-        if (storedContacts) {
-            console.log('storedContacts: ', storedContacts.length)
-            // run this if statement for the firsttime (firstStart)
-
-            if (contactList.length < storedContacts.length){
-                console.log('22222222222222222')
-                // update the contactslist in state
-                dispatch({ type: SAVE_CONTACTS, payload: storedContacts })
-                //await AsyncStorage.setItem('@contacts', JSON.stringify(storedContacts))
-                return storedContacts
-            }
-            return contactList
-        }
-        return []
-    }
-    */
-    /*
-    useEffect(() => {
-        let interval = setInterval((function () {
-            (async() => {
-                console.log('interval checking')
-                try {
-                    await syncContactsFromStorage()
-                    //const contacts = JSON.parse(await AsyncStorage.getItem('@contacts'))
-                    //contactsInStorage(contacts)
-
-                } catch (err){
-                    console.log(err)
-                }
-            })()
-        }).bind(this), 5000)
-
-        return () => {
-            console.log('interval cleared')
-            clearInterval(interval)
-        }
-    }, [])
-    /*
-    /*
-    useEffect(() => {
-        // update contacts state.
-        (async () => {
-            await syncContactsFromStorage()
-            // update contacts state.
-            //dispatch({ type: SAVE_CONTACTS, payload: contactToWorkWith })
-        })()
-    }, [])
-    */
+        AsyncStorage.setItem('@incoming', incoming.toString())
+        AsyncStorage.setItem('@outgoing', outgoing.toString())
+        AsyncStorage.setItem('@answeredExternally', answeredExternally.toString())
+        AsyncStorage.setItem('@missed', missed.toString())
+        AsyncStorage.setItem('@voicemail', voicemail.toString())
+        AsyncStorage.setItem('@rejected', rejected.toString())
+        AsyncStorage.setItem('@blocked', blocked.toString())
+    }, [buttonStatus])
 
     useEffect(() => {
         if (buttonStatus) {
@@ -283,27 +268,6 @@ export default function HomeScreen(props)
             {
                 console.log('On')
             }
-
-            /*
-            Object {
-                "contactType": "person",
-                "firstName": "Maazouz",
-                "id": "2844",
-                "imageAvailable": false,
-                "lastName": "3",
-                "lookupKey": "904i79b910848cf5eed3",
-                "name": "Maazouz 3",
-                "phoneNumbers": Array [
-                    Object {
-                    "id": "6126",
-                    "isPrimary": 0,
-                    "label": "mobile",
-                    "number": "+212624482224",
-                    "type": "2",
-                    },
-                ],
-            },
-            */
 
             // asking for permissions
             //Contacts.requestPermissionsAsync().then(({ status }) => {
@@ -319,11 +283,6 @@ export default function HomeScreen(props)
                         // saving contacts to storage to make it accessable to the Task.
                         AsyncStorage.setItem('@token', token).then(() => {
                             AsyncStorage.setItem('@minTimestamp', new Date().getTime().toString()).then(() => {
-                                (async () => {
-                                    await AsyncStorage.setItem('@incoming', incomingCalls.toString())
-                                    await AsyncStorage.setItem('@outgoing', outgoingCalls.toString())
-                                })()
-
                                 ToastAndroid.show('Initialized successfully.', ToastAndroid.SHORT)
                                 if (Config.DEBUG)
                                 {
@@ -373,7 +332,6 @@ export default function HomeScreen(props)
 
    return (
        <View style={styles.container}>
-            <Text style={styles.title}>Turn on the switch to start sendding greating SMS messages to new customers.</Text>
             <View style={{ borderRadius: 75, overflow: 'hidden'}}>
                 <TouchableNativeFeedback onPress={toggleButtonHandler}>
                     <View style={[styles.button, (buttonStatus ? {} : { backgroundColor: '#E91E63a5', borderColor: '#E91E63' })]}>
@@ -381,11 +339,12 @@ export default function HomeScreen(props)
                 </View>
                 </TouchableNativeFeedback>
             </View>
+            <Text style={styles.title}>Turn on the switch to start sendding SMS messages to new customers.</Text>
            {Config.DEBUG && <View>
                 <Button title='Show Tasks' onPress={showTasksHandler} />
                 <Button title={`Reset to FirstStart (${firstStart})`} onPress={firstStartHandler} />
 
-                <Button title='Show incoming & outgoing status' onPress={showStatusInStorage} />
+                <Button title='Show Filtered Call Logs' onPress={showStatusInStorage} />
             </View>}
         </View>
     )
